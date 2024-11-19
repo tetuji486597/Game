@@ -1,0 +1,53 @@
+let n be the length of the longer list between bignum1 and bignum2
+let B(n) be the worst case runtime of bignum-add
+B(n) <= b + B(n-1)
+B(n-1) <= b + B(n-2)
+.
+.
+.
+B(0) = c
+Combining these, B(n) <= bn + c
+let C(n) be the worst case runtime of combine.
+C(n) <= d + C(n-1)
+C(n-1) <= d + C(n-2)
+.
+.
+.
+C(0) <= e
+Combining these, C(n) <= dn + e
+let A(n) be the worst case runtime of bignum+
+A(n) <= B(n) + C(n)
+A(n) <= (bn + c) + (dn + e)
+A(n) <= (b+d)n + (c+e)
+A(n) <= O(n) + O(1)
+A(n) <= O(n)
+Therefore, bignum+ is (a) at-most-linear
+----------------------------------------------
+Let B(n) be the largest number of elementary operations involved
+in applying bignum+ to any two bignums, each of length no greater
+than n digits
+
+Let P(n) be the largest number of operations required to get a partial
+product, which is the result of multipling each digit of a bignum of
+length n by a single digit
+
+The function mul-ten is in constant time because it only involves a
+call to cons, an O(1) function.
+Let T(n) be the worst case runtime of mul-ten.
+T(n) <= f
+
+Let I(n) be the worst case runtime of one-iter.
+I(n) <= B(n) + P(n) + I(n-1)
+I(n-1) <= B(n-1) + P(n-1) + I(n-2)
+.
+.
+.
+I(0) <= q
+Combining these,
+I(n) <= B(n) + P(n) + q
+
+Let M(n, k) be the worst case runtime of bignum* of a bignum of length
+n and a bignum of length k
+M(n, k) <= k * I(n)
+M(n, k) <= k * (B(n) + P(n) + q)
+

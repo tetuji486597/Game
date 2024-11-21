@@ -8,7 +8,7 @@ module type Game = {
        | Win(whichPlayer)
        | Draw
        | Ongoing(whichPlayer);
-
+    
     /* the state of the game: the position, status, anything else associated
     with the game at a given turn */
     type state;

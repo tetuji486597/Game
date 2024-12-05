@@ -63,6 +63,13 @@ let rec parseBoardDims: string => list(int) =
    }
 };
 
+let getBoardWidth: list(int) => int =
+  dims =>
+    switch (dims) {
+    | [_, width] => width
+    | _ => failwith("invalid dimensions")
+    };
+
 let getBoardHeight: list(int) => int =
   dims =>
     switch (dims) {
@@ -70,9 +77,4 @@ let getBoardHeight: list(int) => int =
     | _ => failwith("invalid dimensions")
     };
 
-let getBoardWidth: list(int) => int =
-  dims =>
-    switch (dims) {
-    | [_, width] => width
-    | _ => failwith("invalid dimensions")
-    };
+

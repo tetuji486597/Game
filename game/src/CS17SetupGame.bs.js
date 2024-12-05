@@ -66,18 +66,6 @@ function parseBoardDims(t) {
         };
 }
 
-function getBoardHeight(dims) {
-  if (!dims) {
-    return Pervasives.failwith("invalid dimensions");
-  }
-  var match = dims.tl;
-  if (match && !match.tl) {
-    return dims.hd;
-  } else {
-    return Pervasives.failwith("invalid dimensions");
-  }
-}
-
 function getBoardWidth(dims) {
   if (!dims) {
     return Pervasives.failwith("invalid dimensions");
@@ -90,11 +78,23 @@ function getBoardWidth(dims) {
   }
 }
 
+function getBoardHeight(dims) {
+  if (!dims) {
+    return Pervasives.failwith("invalid dimensions");
+  }
+  var match = dims.tl;
+  if (match && !match.tl) {
+    return dims.hd;
+  } else {
+    return Pervasives.failwith("invalid dimensions");
+  }
+}
+
 exports.printGreen = printGreen;
 exports.printRed = printRed;
 exports.checkExpect = checkExpect;
 exports.checkError = checkError;
 exports.parseBoardDims = parseBoardDims;
-exports.getBoardHeight = getBoardHeight;
 exports.getBoardWidth = getBoardWidth;
+exports.getBoardHeight = getBoardHeight;
 /* No side effect */

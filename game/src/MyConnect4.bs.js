@@ -3,6 +3,7 @@
 
 var List = require("bs-platform/lib/js/list.js");
 var Pervasives = require("bs-platform/lib/js/pervasives.js");
+var Caml_format = require("bs-platform/lib/js/caml_format.js");
 var CS17SetupGame$Game = require("./CS17SetupGame.bs.js");
 
 function transpose(mat) {
@@ -31,12 +32,32 @@ function vertFlip(matrix) {
   return List.map(List.rev, matrix);
 }
 
-function horzFlip(matrix) {
-  if (matrix) {
-    return Pervasives.$at(horzFlip(matrix.tl), {
-                hd: matrix.hd,
-                tl: /* [] */0
-              });
+var getBoardWidth = List.length;
+
+function addPaddingToRow(_c, _n) {
+  while(true) {
+    var n = _n;
+    var c = _c;
+    if (n === 0) {
+      return c;
+    }
+    _n = n - 1 | 0;
+    _c = {
+      hd: 0,
+      tl: c
+    };
+    continue ;
+  };
+}
+
+function addPaddingToBoard(b, nd, nc) {
+  if (b) {
+    return {
+            hd: Pervasives.$at(addPaddingToRow(b.hd, nd), List.init(nc - nd | 0, (function (param) {
+                        return 0;
+                      }))),
+            tl: addPaddingToBoard(b.tl, nd - 1 | 0, nc)
+          };
   } else {
     return /* [] */0;
   }
@@ -53,16 +74,16 @@ function checkFourInARow(_c) {
       return false;
     }
     var match$1 = match.tl;
-    var t2 = match.hd;
     if (!match$1) {
       return false;
     }
     var match$2 = match$1.tl;
-    var t3 = match$1.hd;
     if (!match$2) {
       return false;
     }
     var t4 = match$2.hd;
+    var t3 = match$1.hd;
+    var t2 = match.hd;
     if (c.hd === t2 && t2 === t3 && t3 === t4 && t4 !== 0) {
       return true;
     }
@@ -98,521 +119,370 @@ function checkHorizontalWin(b) {
   return checkVerticalWin(transpose(b));
 }
 
-function mainDiagonal(matrix) {
-  return List.mapi((function (rowIndex, row) {
-                return List.nth(row, rowIndex);
-              }), matrix);
-}
-
-function upper_NWSE_Diagonals(b) {
-  if (b) {
-    return {
-            hd: mainDiagonal(b),
-            tl: upper_NWSE_Diagonals(b.tl)
-          };
-  } else {
-    return /* [] */0;
-  }
-}
-
 function allDiagonals(mat) {
-  return Pervasives.$at(upper_NWSE_Diagonals(mat), Pervasives.$at(upper_NWSE_Diagonals(transpose(mat)), Pervasives.$at(upper_NWSE_Diagonals(horzFlip(mat)), upper_NWSE_Diagonals(horzFlip(transpose(mat))))));
+  return Pervasives.$at(transpose(addPaddingToBoard(mat, List.length(mat), List.length(mat))), transpose(addPaddingToBoard(List.map(List.rev, mat), List.length(List.map(List.rev, mat)), List.length(List.map(List.rev, mat)))));
 }
 
 function checkDiagonalWin(b) {
   return checkVerticalWin(allDiagonals(b));
 }
 
-var exampleBoard = {
-  hd: {
-    hd: 0,
-    tl: {
-      hd: 0,
-      tl: {
-        hd: 2,
-        tl: {
-          hd: 1,
-          tl: {
-            hd: 2,
-            tl: {
-              hd: 1,
-              tl: /* [] */0
-            }
-          }
-        }
-      }
+function stringOfList(lis) {
+  if (!lis) {
+    return "";
+  }
+  var tl = lis.tl;
+  var a = lis.hd;
+  if (tl) {
+    return String(a) + (", " + stringOfList(tl));
+  } else {
+    return String(a);
+  }
+}
+
+function stringOfPlayer(pla) {
+  if (pla) {
+    return "Player 2";
+  } else {
+    return "Player 1";
+  }
+}
+
+function stringOfStateHelper(mat) {
+  if (!mat) {
+    return Pervasives.failwith("empty state");
+  }
+  var tl = mat.tl;
+  var a = mat.hd;
+  if (tl) {
+    return "[" + (stringOfList(a) + ("]\n" + stringOfStateHelper(tl)));
+  } else {
+    return "[" + (stringOfList(a) + "]");
+  }
+}
+
+function stringOfState(sta) {
+  var match = sta[0];
+  if (typeof match === "number") {
+    return "Draw";
+  } else if (match.TAG === /* Win */0) {
+    if (match._0) {
+      return "Player 2 won";
+    } else {
+      return "Player 1 won";
     }
-  },
-  tl: {
-    hd: {
-      hd: 0,
-      tl: {
-        hd: 0,
-        tl: {
-          hd: 1,
-          tl: {
-            hd: 1,
-            tl: {
-              hd: 2,
-              tl: {
-                hd: 1,
-                tl: /* [] */0
-              }
-            }
-          }
-        }
-      }
-    },
-    tl: {
-      hd: {
-        hd: 0,
-        tl: {
-          hd: 0,
-          tl: {
-            hd: 2,
-            tl: {
-              hd: 2,
-              tl: {
-                hd: 1,
-                tl: {
+  } else if (match._0) {
+    return "Player 2's turn with board \n" + stringOfStateHelper(transpose(sta[1]));
+  } else {
+    return "Player 1's turn with board \n" + stringOfStateHelper(transpose(sta[1]));
+  }
+}
+
+function stringOfMove(m) {
+  return String(m);
+}
+
+function initialState(s) {
+  var boardDims = CS17SetupGame$Game.parseBoardDims(s);
+  var getBoardWidth = function (dims) {
+    if (!dims) {
+      return Pervasives.failwith("invalid dimensions");
+    }
+    var match = dims.tl;
+    if (match && !match.tl) {
+      return match.hd;
+    } else {
+      return Pervasives.failwith("invalid dimensions");
+    }
+  };
+  var boardWidth = getBoardWidth(boardDims);
+  var boardHeight = CS17SetupGame$Game.getBoardHeight(boardDims);
+  return [
+          {
+            TAG: /* Ongoing */1,
+            _0: /* P1 */0
+          },
+          List.init(boardHeight, (function (param) {
+                  return List.init(boardWidth, (function (param) {
+                                return 0;
+                              }));
+                }))
+        ];
+}
+
+function fullColumnP(c) {
+  if (c) {
+    return c.hd !== 0;
+  } else {
+    return true;
+  }
+}
+
+function legalMovesHelper(_n, _b) {
+  while(true) {
+    var b = _b;
+    var n = _n;
+    if (!b) {
+      return /* [] */0;
+    }
+    var tl = b.tl;
+    if (!fullColumnP(b.hd)) {
+      return {
+              hd: n,
+              tl: legalMovesHelper(n + 1 | 0, tl)
+            };
+    }
+    _b = tl;
+    _n = n + 1 | 0;
+    continue ;
+  };
+}
+
+function legalMoves(s) {
+  return legalMovesHelper(1, s[1]);
+}
+
+function gameStatus(s) {
+  return s[0];
+}
+
+function columnPlaceHelper(column, pla) {
+  if (!column) {
+    return Pervasives.failwith("column place helper failed");
+  }
+  if (column.hd !== 0) {
+    return Pervasives.failwith("column place helper failed");
+  }
+  var tl = column.tl;
+  if (tl) {
+    var match = tl.hd;
+    if (match !== 1) {
+      if (match === 2) {
+        var tl$1 = tl.tl;
+        if (pla === /* P1 */0) {
+          return {
                   hd: 1,
-                  tl: /* [] */0
-                }
-              }
-            }
-          }
-        }
-      },
-      tl: {
-        hd: {
-          hd: 0,
-          tl: {
-            hd: 0,
-            tl: {
-              hd: 0,
-              tl: {
-                hd: 1,
-                tl: {
+                  tl: {
+                    hd: 2,
+                    tl: tl$1
+                  }
+                };
+        } else {
+          return {
                   hd: 2,
                   tl: {
                     hd: 2,
-                    tl: /* [] */0
+                    tl: tl$1
                   }
-                }
-              }
-            }
-          }
-        },
-        tl: {
-          hd: {
-            hd: 0,
-            tl: {
-              hd: 0,
-              tl: {
-                hd: 0,
+                };
+        }
+      }
+      
+    } else {
+      var tl$2 = tl.tl;
+      if (pla === /* P1 */0) {
+        return {
+                hd: 1,
                 tl: {
                   hd: 1,
-                  tl: {
-                    hd: 2,
-                    tl: {
-                      hd: 1,
-                      tl: /* [] */0
-                    }
-                  }
+                  tl: tl$2
                 }
-              }
-            }
-          },
-          tl: {
-            hd: {
-              hd: 0,
-              tl: {
-                hd: 0,
+              };
+      } else {
+        return {
+                hd: 2,
                 tl: {
-                  hd: 0,
-                  tl: {
-                    hd: 0,
-                    tl: {
-                      hd: 1,
-                      tl: {
-                        hd: 1,
-                        tl: /* [] */0
-                      }
-                    }
-                  }
+                  hd: 1,
+                  tl: tl$2
                 }
-              }
-            },
-            tl: {
-              hd: {
-                hd: 0,
-                tl: {
-                  hd: 0,
-                  tl: {
-                    hd: 0,
-                    tl: {
-                      hd: 2,
-                      tl: {
-                        hd: 2,
-                        tl: {
-                          hd: 1,
-                          tl: /* [] */0
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              tl: /* [] */0
-            }
-          }
-        }
+              };
       }
     }
   }
-};
-
-var exampleBoard2 = {
-  hd: {
-    hd: 0,
-    tl: {
-      hd: 1,
-      tl: {
-        hd: 2,
-        tl: {
-          hd: 1,
-          tl: {
-            hd: 2,
-            tl: {
+  if (List.length(tl) === 0) {
+    if (pla === /* P1 */0) {
+      return {
               hd: 1,
               tl: /* [] */0
-            }
-          }
-        }
-      }
-    }
-  },
-  tl: {
-    hd: {
-      hd: 0,
-      tl: {
-        hd: 0,
-        tl: {
-          hd: 1,
-          tl: {
-            hd: 1,
-            tl: {
+            };
+    } else {
+      return {
               hd: 2,
-              tl: {
-                hd: 1,
-                tl: /* [] */0
-              }
-            }
-          }
-        }
-      }
-    },
-    tl: {
-      hd: {
-        hd: 0,
-        tl: {
-          hd: 0,
-          tl: {
-            hd: 2,
-            tl: {
-              hd: 1,
-              tl: {
-                hd: 1,
-                tl: {
-                  hd: 1,
-                  tl: /* [] */0
-                }
-              }
-            }
-          }
-        }
-      },
-      tl: {
-        hd: {
-          hd: 0,
-          tl: {
-            hd: 0,
-            tl: {
-              hd: 0,
-              tl: {
-                hd: 1,
-                tl: {
-                  hd: 1,
-                  tl: {
-                    hd: 1,
-                    tl: /* [] */0
-                  }
-                }
-              }
-            }
-          }
-        },
-        tl: {
-          hd: {
-            hd: 0,
-            tl: {
-              hd: 0,
-              tl: {
-                hd: 0,
-                tl: {
-                  hd: 1,
-                  tl: {
-                    hd: 2,
-                    tl: {
-                      hd: 2,
-                      tl: /* [] */0
-                    }
-                  }
-                }
-              }
-            }
-          },
-          tl: {
-            hd: {
-              hd: 0,
-              tl: {
-                hd: 0,
-                tl: {
-                  hd: 0,
-                  tl: {
-                    hd: 0,
-                    tl: {
-                      hd: 1,
-                      tl: {
-                        hd: 1,
-                        tl: /* [] */0
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            tl: {
-              hd: {
-                hd: 0,
-                tl: {
-                  hd: 2,
-                  tl: {
-                    hd: 2,
-                    tl: {
-                      hd: 2,
-                      tl: {
-                        hd: 2,
-                        tl: {
-                          hd: 1,
-                          tl: /* [] */0
-                        }
-                      }
-                    }
-                  }
-                }
-              },
               tl: /* [] */0
-            }
-          }
-        }
-      }
+            };
     }
+  } else {
+    return {
+            hd: 0,
+            tl: columnPlaceHelper(tl, pla)
+          };
   }
-};
+}
 
-var exampleBoard3 = {
-  hd: {
-    hd: 0,
-    tl: {
-      hd: 0,
-      tl: {
-        hd: 2,
-        tl: {
-          hd: 1,
-          tl: {
-            hd: 2,
-            tl: {
-              hd: 1,
-              tl: /* [] */0
-            }
-          }
-        }
-      }
-    }
-  },
-  tl: {
-    hd: {
-      hd: 0,
-      tl: {
-        hd: 0,
-        tl: {
-          hd: 1,
-          tl: {
-            hd: 1,
-            tl: {
-              hd: 2,
-              tl: {
-                hd: 1,
-                tl: /* [] */0
-              }
-            }
-          }
-        }
-      }
-    },
-    tl: {
-      hd: {
-        hd: 0,
-        tl: {
-          hd: 0,
-          tl: {
-            hd: 2,
-            tl: {
-              hd: 2,
-              tl: {
-                hd: 1,
-                tl: {
-                  hd: 1,
-                  tl: /* [] */0
-                }
-              }
-            }
-          }
-        }
-      },
-      tl: {
-        hd: {
-          hd: 0,
-          tl: {
-            hd: 0,
-            tl: {
-              hd: 0,
-              tl: {
-                hd: 1,
-                tl: {
-                  hd: 2,
-                  tl: {
-                    hd: 1,
-                    tl: /* [] */0
-                  }
-                }
-              }
-            }
-          }
-        },
-        tl: {
-          hd: {
-            hd: 0,
-            tl: {
-              hd: 0,
-              tl: {
-                hd: 0,
-                tl: {
-                  hd: 2,
-                  tl: {
-                    hd: 2,
-                    tl: {
-                      hd: 1,
-                      tl: /* [] */0
-                    }
-                  }
-                }
-              }
-            }
-          },
-          tl: {
-            hd: {
-              hd: 0,
-              tl: {
-                hd: 0,
-                tl: {
-                  hd: 2,
-                  tl: {
-                    hd: 2,
-                    tl: {
-                      hd: 1,
-                      tl: {
-                        hd: 1,
-                        tl: /* [] */0
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            tl: {
-              hd: {
-                hd: 0,
-                tl: {
-                  hd: 2,
-                  tl: {
-                    hd: 2,
-                    tl: {
-                      hd: 2,
-                      tl: {
-                        hd: 2,
-                        tl: {
-                          hd: 1,
-                          tl: /* [] */0
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              tl: /* [] */0
-            }
-          }
-        }
-      }
-    }
+function columnPlace(board, mov, pla) {
+  if (!board) {
+    return Pervasives.failwith("column place failed");
   }
+  var tl = board.tl;
+  var hd = board.hd;
+  if (mov === 1) {
+    return {
+            hd: columnPlaceHelper(hd, pla),
+            tl: tl
+          };
+  } else {
+    return {
+            hd: hd,
+            tl: columnPlace(tl, mov - 1 | 0, pla)
+          };
+  }
+}
+
+function fullBoardP(_b) {
+  while(true) {
+    var b = _b;
+    if (!b) {
+      return true;
+    }
+    if (!fullColumnP(b.hd)) {
+      return false;
+    }
+    _b = b.tl;
+    continue ;
+  };
+}
+
+function nextState(s, m) {
+  var p = s[0];
+  if (typeof p === "number") {
+    return [
+            /* Draw */0,
+            s[1]
+          ];
+  }
+  if (p.TAG === /* Win */0) {
+    return [
+            {
+              TAG: /* Win */0,
+              _0: p._0
+            },
+            s[1]
+          ];
+  }
+  var l = s[1];
+  var currentPlayer = p._0;
+  if (fullBoardP(l)) {
+    return [
+            /* Draw */0,
+            l
+          ];
+  }
+  var tmp = true;
+  if (!checkVerticalWin(columnPlace(l, m, currentPlayer))) {
+    var b = columnPlace(l, m, currentPlayer);
+    var tmp$1 = true;
+    if (!checkVerticalWin(transpose(b))) {
+      var b$1 = columnPlace(l, m, currentPlayer);
+      tmp$1 = checkVerticalWin(allDiagonals(b$1));
+    }
+    tmp = tmp$1;
+  }
+  if (tmp) {
+    return [
+            {
+              TAG: /* Win */0,
+              _0: currentPlayer
+            },
+            columnPlace(l, m, currentPlayer)
+          ];
+  } else if (currentPlayer) {
+    return [
+            {
+              TAG: /* Ongoing */1,
+              _0: /* P1 */0
+            },
+            columnPlace(l, m, currentPlayer)
+          ];
+  } else {
+    return [
+            {
+              TAG: /* Ongoing */1,
+              _0: /* P2 */1
+            },
+            columnPlace(l, m, currentPlayer)
+          ];
+  }
+}
+
+function moveOfString(str, s) {
+  Pervasives.print_string("Legal moves: " + (stringOfList(legalMoves(s)) + "\n"));
+  if (List.exists((function (m) {
+            return m === Caml_format.caml_int_of_string(str);
+          }), legalMoves(s))) {
+    return Caml_format.caml_int_of_string(str);
+  } else {
+    return Pervasives.failwith("move out of bounds");
+  }
+}
+
+function estimateValue(s) {
+  var match = s[0];
+  if (typeof match === "number") {
+    return 0;
+  } else if (match.TAG === /* Win */0) {
+    if (match._0) {
+      return Pervasives.neg_infinity;
+    } else {
+      return Pervasives.infinity;
+    }
+  } else if (match._0) {
+    return -100;
+  } else {
+    return 100;
+  }
+}
+
+var Connect4 = {
+  transpose: transpose,
+  vertFlip: vertFlip,
+  getBoardWidth: getBoardWidth,
+  addPaddingToRow: addPaddingToRow,
+  addPaddingToBoard: addPaddingToBoard,
+  checkFourInARow: checkFourInARow,
+  checkVerticalWin: checkVerticalWin,
+  checkHorizontalWin: checkHorizontalWin,
+  allDiagonals: allDiagonals,
+  checkDiagonalWin: checkDiagonalWin,
+  stringOfList: stringOfList,
+  stringOfPlayer: stringOfPlayer,
+  stringOfStateHelper: stringOfStateHelper,
+  stringOfState: stringOfState,
+  stringOfMove: stringOfMove,
+  initialState: initialState,
+  fullColumnP: fullColumnP,
+  legalMovesHelper: legalMovesHelper,
+  legalMoves: legalMoves,
+  gameStatus: gameStatus,
+  columnPlaceHelper: columnPlaceHelper,
+  columnPlace: columnPlace,
+  fullBoardP: fullBoardP,
+  nextState: nextState,
+  moveOfString: moveOfString,
+  estimateValue: estimateValue
 };
 
-CS17SetupGame$Game.checkExpect(checkVerticalWin(transpose(exampleBoard)), false, "no horizontal win");
+var MyGame = {
+  stringOfPlayer: stringOfPlayer,
+  stringOfState: stringOfState,
+  stringOfMove: stringOfMove,
+  initialState: initialState,
+  legalMoves: legalMoves,
+  gameStatus: gameStatus,
+  nextState: nextState,
+  moveOfString: moveOfString,
+  estimateValue: estimateValue
+};
 
-CS17SetupGame$Game.checkExpect(checkVerticalWin(transpose(exampleBoard2)), true, "horizontal win in bottom row");
-
-CS17SetupGame$Game.checkExpect(checkVerticalWin(allDiagonals(exampleBoard)), false, "no diagonal");
-
-CS17SetupGame$Game.checkExpect(checkVerticalWin(allDiagonals(exampleBoard3)), true, "2 diagonal");
-
-CS17SetupGame$Game.checkExpect(checkVerticalWin(exampleBoard), false, "no four in a row");
-
-CS17SetupGame$Game.checkExpect(checkVerticalWin(exampleBoard2), true, "four in a row in last");
-
-CS17SetupGame$Game.checkExpect(checkFourInARow({
-          hd: 0,
-          tl: {
-            hd: 0,
-            tl: {
-              hd: 1,
-              tl: {
-                hd: 1,
-                tl: {
-                  hd: 1,
-                  tl: {
-                    hd: 1,
-                    tl: /* [] */0
-                  }
-                }
-              }
-            }
-          }
-        }), true, "there is four in a row");
-
-exports.transpose = transpose;
-exports.vertFlip = vertFlip;
-exports.horzFlip = horzFlip;
-exports.checkFourInARow = checkFourInARow;
-exports.checkVerticalWin = checkVerticalWin;
-exports.checkHorizontalWin = checkHorizontalWin;
-exports.mainDiagonal = mainDiagonal;
-exports.upper_NWSE_Diagonals = upper_NWSE_Diagonals;
-exports.allDiagonals = allDiagonals;
-exports.checkDiagonalWin = checkDiagonalWin;
-exports.exampleBoard = exampleBoard;
-exports.exampleBoard2 = exampleBoard2;
-exports.exampleBoard3 = exampleBoard3;
-/*  Not a pure module */
+exports.Connect4 = Connect4;
+exports.MyGame = MyGame;
+/* No side effect */

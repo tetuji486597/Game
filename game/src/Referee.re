@@ -1,5 +1,6 @@
 open MyGameType;
 open Player;
+open HumanPlayer;
 
 module Referee =
        (
@@ -39,14 +40,15 @@ module Referee =
         }:
         CurrentGame.state => unit
     );
-    try (gameLoop(CurrentGame.initialState("5 7"))) {
+    // width height
+    try (gameLoop(CurrentGame.initialState("7 6"))) {
     | Failure(message) => print_endline(message)
     };
   };
 };
 
 module R1 = Referee(MyConnect4.Connect4, 
-  (AIPlayer.AIPlayer(MyConnect4.Connect4)), 
+  (HumanPlayer(MyConnect4.Connect4)), 
   (AIPlayer.AIPlayer(MyConnect4.Connect4)));
 
 R1.playGame();
